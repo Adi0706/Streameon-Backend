@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const SignupModel = require("./Models/SignupModel.js");
 const bcrypt = require('bcrypt');
 
+
 dotenv.config();
 
 const app = express();
@@ -21,6 +22,8 @@ try {
 // Middlewares
 app.use(cors());
 app.use(express.json());
+
+
 
 app.post('/api/Signup', async (req, res) => {
     const { name, email, password } = req.body;
@@ -47,6 +50,36 @@ app.post('/api/Signup', async (req, res) => {
         return res.status(500).json({ message: "Internal server error" });
     }
 });
+
+app.post('/api/Login', async (req, res) => {
+    const { email, password } = req.body;
+  
+    try {
+      // Find user by email
+      const user = await SignupModel.findOne({ email });
+  
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+  
+      // Compare provided password with stored hashed password
+      const passwordsMatch = await bcrypt.compare(password, user.password);
+  
+      if (!passwordsMatch) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+  
+      // Passwords match - login successful
+      return res.status(200).json({ message: "Login successful" });
+  
+    } catch (error) {
+      console.error("Error logging in:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+
+
 
 app.listen(PORT_NUMBER, () => {
     console.log(`Server is running on Port Number ${PORT_NUMBER}`);

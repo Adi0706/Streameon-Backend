@@ -80,6 +80,26 @@ app.post('/api/Login', async (req, res) => {
 
 
 
+  app.get('/api/Users/:userId', async (req, res) => {
+    try {
+      const userId = req.params.userId; // Extract the userId from the request parameters
+      
+      // Fetch the user's profile from the database based on the provided userId
+      const profile = await SignupModel.findById(userId);
+      
+      if (!profile) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      
+      // Return the profile data
+      res.json(profile);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+  
 
 app.listen(PORT_NUMBER, () => {
     console.log(`Server is running on Port Number ${PORT_NUMBER}`);

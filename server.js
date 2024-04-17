@@ -3,8 +3,10 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const SignupModel = require("./Models/SignupModel.js");
+const ProfileImageModel = require('./Models/ProfilePicture.js') ;
 const bcrypt = require('bcrypt');
-
+const multer = require('multer');
+const path = require('path');
 
 dotenv.config();
 
@@ -22,8 +24,20 @@ try {
 // Middlewares
 app.use(cors());
 app.use(express.json());
+app.use(express.static('Public')) ;
 
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'Public/Images');
+    },
+    filename: (req, file, cb) => {
+        cb(null, file.fieldname + "_" + Date.now() + path.extname(file.originalname));
+    }
+});
 
+const upload = multer({
+    storage: storage
+});
 
 app.post('/api/Signup', async (req, res) => {
     const { name, email, password } = req.body;
@@ -53,53 +67,62 @@ app.post('/api/Signup', async (req, res) => {
 
 app.post('/api/Login', async (req, res) => {
     const { email, password } = req.body;
-  
+
     try {
-      // Find user by email
-      const user = await SignupModel.findOne({ email });
-  
-      if (!user) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-  
-      // Compare provided password with stored hashed password
-      const passwordsMatch = await bcrypt.compare(password, user.password);
-  
-      if (!passwordsMatch) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-  
-      // Passwords match - login successful
-      return res.status(200).json({ message: "Login successful" });
-  
+        // Find user by email
+        const user = await SignupModel.findOne({ email });
+
+        if (!user) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+
+        // Compare provided password with stored hashed password
+        const passwordsMatch = await bcrypt.compare(password, user.password);
+
+        if (!passwordsMatch) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+
+        // Passwords match - login successful
+        return res.status(200).json({ message: "Login successful" });
+
     } catch (error) {
-      console.error("Error logging in:", error);
-      return res.status(500).json({ message: "Internal Server Error" });
-    }
-  });
-
-
-
-  app.get('/api/Users/:userId', async (req, res) => {
-    try {
-      const userId = req.params.userId; // Extract the userId from the request parameters
-      
-      // Fetch the user's profile from the database based on the provided userId
-      const profile = await SignupModel.findById(userId);
-      
-      if (!profile) {
-        return res.status(404).json({ message: "Profile not found" });
-      }
-      
-      // Return the profile data
-      res.json(profile);
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-      res.status(500).json({ message: "Internal server error" });
+        console.error("Error logging in:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
     }
 });
 
-  
+app.post("/api/Upload", upload.single('file'), async (req, res) => {
+  try {
+      // Create a new document in the ProfileImageModel collection with the uploaded file's filename
+      const newProfileImage = await ProfileImageModel.create({ image: req.file.filename });
+      
+      // Send a success response with the created profile image document
+      return res.status(201).json(newProfileImage);
+  } catch (error) {
+      // If there's an error, log it and send a 500 internal server error response
+      console.error("Error uploading file:", error);
+      return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.get("/api/GetProfilepicture", async (req, res) => {
+  try {
+      // Find the last uploaded profile picture document by sorting in descending order of creation date and limiting to 1
+      const lastProfileImage = await ProfileImageModel.findOne().sort({ createdAt: -1 }).limit(1);
+
+      if (lastProfileImage) {
+          return res.status(200).json(lastProfileImage);
+      } else {
+        
+          return res.status(404).json({ message: "No profile picture found" });
+      }
+  } catch (error) {
+
+      console.error("Error fetching profile picture:", error);
+      return res.status(500).json({ message: "Internal server error" });
+  }
+});
 
 app.listen(PORT_NUMBER, () => {
     console.log(`Server is running on Port Number ${PORT_NUMBER}`);

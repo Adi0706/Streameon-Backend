@@ -3,7 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const SignupModel = require("./Models/SignupModel.js");
-const ProfileImageModel = require('./Models/ProfilePicture.js') ;
+const UserModel = require('./Models/UserModel.js') ;
 const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
@@ -92,37 +92,32 @@ app.post('/api/Login', async (req, res) => {
     }
 });
 
+// POST /api/Upload route for handling file upload and user data
 app.post("/api/Upload", upload.single('file'), async (req, res) => {
-  try {
-      // Create a new document in the ProfileImageModel collection with the uploaded file's filename
-      const newProfileImage = await ProfileImageModel.create({ image: req.file.filename });
-      
-      // Send a success response with the created profile image document
-      return res.status(201).json(newProfileImage);
-  } catch (error) {
-      // If there's an error, log it and send a 500 internal server error response
-      console.error("Error uploading file:", error);
-      return res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-app.get("/api/GetProfilepicture", async (req, res) => {
-  try {
-      // Find the last uploaded profile picture document by sorting in descending order of creation date and limiting to 1
-      const lastProfileImage = await ProfileImageModel.findOne().sort({ createdAt: -1 }).limit(1);
-
-      if (lastProfileImage) {
-          return res.status(200).json(lastProfileImage);
+    try {
+      if (req.file) {
+        // Handle file upload
+        const imageUrl = `http://localhost:8000/Images/${req.file.filename}`;
+        // Return the uploaded image URL
+        return res.status(201).json({ image: req.file.filename, imageUrl });
+      } else if (req.body.userName) {
+        // Handle user data upload
+        const { userName } = req.body;
+        // Process user data (e.g., save to database)
+        // Example: create a new user record in the database
+        const newUser = await UserModel.create({ userName });
+        // Return success response
+        return res.status(201).json(newUser);
       } else {
-        
-          return res.status(404).json({ message: "No profile picture found" });
+        return res.status(400).json({ message: "Invalid request" });
       }
-  } catch (error) {
-
-      console.error("Error fetching profile picture:", error);
+    } catch (error) {
+      console.error("Error uploading data:", error);
       return res.status(500).json({ message: "Internal server error" });
-  }
-});
+    }
+  });
+  
+
 
 app.listen(PORT_NUMBER, () => {
     console.log(`Server is running on Port Number ${PORT_NUMBER}`);

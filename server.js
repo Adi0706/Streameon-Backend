@@ -3,16 +3,28 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const SignupModel = require("./Models/SignupModel.js");
-const UserModel = require('./Models/UserModel.js') ;
 const bcrypt = require('bcrypt');
-const multer = require('multer');
-const path = require('path');
+const {Server} = require('socket.io') ; 
+
+
 
 dotenv.config();
+
 
 const app = express();
 const PORT_NUMBER = process.env.PORT;
 const MONGOURL = process.env.MONGO_ATLAS_CONNECTION_URL;
+const SOCKET_PORT = process.env.SOCKET_PORT
+
+const io = new Server(SOCKET_PORT,{
+    cors:true,
+})
+
+io.on('connection',(socket)=>{
+    console.log("Connected",socket.id)
+})
+
+
 
 try {
     mongoose.connect(MONGOURL);
@@ -24,20 +36,9 @@ try {
 // Middlewares
 app.use(cors());
 app.use(express.json());
-app.use(express.static('Public')) ;
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'Public/Images');
-    },
-    filename: (req, file, cb) => {
-        cb(null, file.fieldname + "_" + Date.now() + path.extname(file.originalname));
-    }
-});
 
-const upload = multer({
-    storage: storage
-});
+
 
 app.post('/api/Signup', async (req, res) => {
     const { name, email, password } = req.body;
@@ -92,31 +93,7 @@ app.post('/api/Login', async (req, res) => {
     }
 });
 
-// POST /api/Upload route for handling file upload and user data
-app.post("/api/Upload", upload.single('file'), async (req, res) => {
-    try {
-      if (req.file) {
-        // Handle file upload
-        const imageUrl = `http://localhost:8000/Images/${req.file.filename}`;
-        // Return the uploaded image URL
-        return res.status(201).json({ image: req.file.filename, imageUrl });
-      } else if (req.body.userName) {
-        // Handle user data upload
-        const { userName } = req.body;
-        // Process user data (e.g., save to database)
-        // Example: create a new user record in the database
-        const newUser = await UserModel.create({ userName });
-        // Return success response
-        return res.status(201).json(newUser);
-      } else {
-        return res.status(400).json({ message: "Invalid request" });
-      }
-    } catch (error) {
-      console.error("Error uploading data:", error);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-  });
-  
+
 
 
 app.listen(PORT_NUMBER, () => {

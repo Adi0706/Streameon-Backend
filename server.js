@@ -20,8 +20,21 @@ const io = new Server(SOCKET_PORT,{
     cors:true,
 })
 
+const UsernametoSocketIdMap = new Map() ; 
+const socketIdtoMap = new Map() ;
+
 io.on('connection',(socket)=>{
     console.log("Connected",socket.id)
+    socket.on("room:join",data=>{
+       const {userName,room} = data ; 
+        //user enters our server
+        UsernametoSocketIdMap.set(userName,socket.id)
+        socketIdtoMap.set(socket.id,userName) ;
+        //if an user joins the room bradcast that the an user is joining 
+        io.to(room).emit("user:joined",{userName,id:socket.id})
+        socket.join(room) ; 
+        io.to(socket.id).emit("room:join",data) ; 
+    })
 })
 
 

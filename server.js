@@ -23,46 +23,38 @@ const io = new Server(SOCKET_PORT,{
 const UsernametoSocketIdMap = new Map() ; 
 const socketIdtoMap = new Map() ;
 
-
 io.on("connection", (socket) => {
-    console.log(`Socket Connected: ${socket.id}`);
-  
-    socket.on("room:join", (data) => {
-      const { email, room } = data;
-      UsernametoSocketIdMap.set(email, socket.id);
-      socketIdtoMap.set(socket.id, email);
-      socket.join(room);
-      io.to(room).emit("user:joined", { email, id: socket.id });
-      io.to(socket.id).emit("room:join", data);
-    });
-  
-    socket.on("user:call", ({ to, offer }) => {
-      io.to(to).emit("incoming:call", { from: socket.id, offer });
-    });
-  
-    socket.on("call:accepted", ({ to, answer }) => {
-      io.to(to).emit("call:accepted", { from: socket.id, answer });
-    });
-  
-    socket.on("peer:negotiation:needed", ({ to, offer }) => {
-      console.log("Peer negotiation needed", offer);
-      io.to(to).emit("peer:negotiation:needed", { from: socket.id, offer });
-    });
-  
-    socket.on("peer:negotiation:done", ({ to, answer }) => {
-      console.log("Peer negotiation done", answer);
-      io.to(to).emit("peer:negotiation:final", { from: socket.id, answer });
-    });
-  
-    socket.on("disconnect", () => {
-      const email = socketIdToEmailMap.get(socket.id);
-      if (email) {
-        emailToSocketIdMap.delete(email);
-        socketIdToEmailMap.delete(socket.id);
-        console.log(`Socket Disconnected: ${socket.id}`);
-      }
-    });
+  console.log(`Socket Connected`, socket.id);
+
+  socket.on("room:join", (data) => {
+    const { userName, room } = data;
+
+    // Store the mapping of userName to socket.id
+    UsernametoSocketIdMap.set(userName, socket.id);
+
+    // Store the mapping of socket.id to userName (if needed)
+    // Assuming you meant to use userName instead of email here
+    socketIdtoMap.set(socket.id, userName);
+
+    // Notify all users in the room that a new user has joined
+    io.to(room).emit("user:joined", { userName, id: socket.id });
+
+    // Make the socket join the specified room
+    socket.join(room);
+
+    // Emit a "room:join" event back to the client
+    io.to(socket.id).emit("room:join", data);
   });
+
+  socket.on("user:call", ({ to, offer }) => {
+    // Emit an "incoming:call" event to the specified user
+    io.to(to).emit("incoming:call", { from: socket.id, offer });
+  });
+
+  socket.on("call:accepted",({to,answer})=>{
+    io.to(to).emit("incoming:call", { from: socket.id, answer });
+  })
+});
 
 
 try {

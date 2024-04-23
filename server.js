@@ -23,20 +23,46 @@ const io = new Server(SOCKET_PORT,{
 const UsernametoSocketIdMap = new Map() ; 
 const socketIdtoMap = new Map() ;
 
-io.on('connection',(socket)=>{
-    console.log("Connected",socket.id)
-    socket.on("room:join",data=>{
-       const {userName,room} = data ; 
-        //user enters our server
-        UsernametoSocketIdMap.set(userName,socket.id)
-        socketIdtoMap.set(socket.id,userName) ;
-        //if an user joins the room bradcast that the an user is joining 
-        io.to(room).emit("user:joined",{userName,id:socket.id})
-        socket.join(room) ; 
-        io.to(socket.id).emit("room:join",data) ; 
-    })
-})
 
+io.on("connection", (socket) => {
+    console.log(`Socket Connected: ${socket.id}`);
+  
+    socket.on("room:join", (data) => {
+      const { email, room } = data;
+      UsernametoSocketIdMap.set(email, socket.id);
+      socketIdtoMap.set(socket.id, email);
+      socket.join(room);
+      io.to(room).emit("user:joined", { email, id: socket.id });
+      io.to(socket.id).emit("room:join", data);
+    });
+  
+    socket.on("user:call", ({ to, offer }) => {
+      io.to(to).emit("incoming:call", { from: socket.id, offer });
+    });
+  
+    socket.on("call:accepted", ({ to, answer }) => {
+      io.to(to).emit("call:accepted", { from: socket.id, answer });
+    });
+  
+    socket.on("peer:negotiation:needed", ({ to, offer }) => {
+      console.log("Peer negotiation needed", offer);
+      io.to(to).emit("peer:negotiation:needed", { from: socket.id, offer });
+    });
+  
+    socket.on("peer:negotiation:done", ({ to, answer }) => {
+      console.log("Peer negotiation done", answer);
+      io.to(to).emit("peer:negotiation:final", { from: socket.id, answer });
+    });
+  
+    socket.on("disconnect", () => {
+      const email = socketIdToEmailMap.get(socket.id);
+      if (email) {
+        emailToSocketIdMap.delete(email);
+        socketIdToEmailMap.delete(socket.id);
+        console.log(`Socket Disconnected: ${socket.id}`);
+      }
+    });
+  });
 
 
 try {

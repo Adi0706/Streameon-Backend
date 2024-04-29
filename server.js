@@ -5,22 +5,41 @@ const mongoose = require('mongoose');
 const SignupModel = require("./Models/SignupModel.js");
 const bcrypt = require('bcrypt');
 const {Server} = require('socket.io') ; 
+const app = express();
 
 
 
 dotenv.config();
 
 
-const app = express();
+
 const PORT_NUMBER = process.env.PORT;
 const MONGOURL = process.env.MONGO_ATLAS_CONNECTION_URL;
-const SOCKET_PORT = process.env.SOCKET_PORT
+// const SOCKET_PORT = process.env.SOCKET_PORT
 
-const io = new Server(SOCKET_PORT,{
-    cors:true,
-})
+const httpServer = require('http').createServer(app); // Create HTTP server to integrate it with Socket server
+const io = new Server(httpServer, {
+    cors: {
+        origin: "http://localhost:3000",
+        methods: ["GET", "POST"]
+    }
+});
 
+// Socket.io server connection for video calls
+io.on("connection", (socket) => {
+    socket.emit("me", socket.id);
 
+    socket.on("disconnect", () => {
+        socket.broadcast.emit("callEnded");
+    });
+
+    socket.on("callUser", (data) => {
+        io.to(data.userToCall).emit("callUser", { signal: data.signalData, from: data.from, name: data.name });
+    });
+
+    // Fix syntax for answerCall event handling
+    socket.on("answerCall", (data) => io.to(data.to).emit("callAccepted", data.signal));
+});
 
 
 

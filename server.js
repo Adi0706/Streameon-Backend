@@ -6,6 +6,8 @@ const SignupModel = require("./Models/SignupModel.js");
 const bcrypt = require('bcrypt');
 const { Server } = require('socket.io'); 
 const http = require('http');
+const jwt = require("jsonwebtoken")  ; 
+const nodemailer = require('nodemailer') ; 
 
 dotenv.config();
 
@@ -90,6 +92,70 @@ app.post('/api/Login', async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 });
+
+//nodemailer configuration
+var transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'aditya.bhattacharjee706@gmail.com',
+      pass: process.env.GOOGLE_APP_PASSWORD
+    }
+});
+  
+app.post('/api/ForgotPassword', async (req, res) => {
+    const { email } = req.body;
+
+    try {
+        const user = await SignupModel.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const token = jwt.sign({ id: user.id }, "jwt_secret_key", { expiresIn: "1d" });
+
+        var mailOptions = {
+            from: 'aditya.bhattacharjee706@gmail.com',
+            to: email,
+            subject: 'Link to Reset Password !',
+            text: `http://localhost:3000/ResetPassword/${user.id}/${token}`
+        };
+
+        transporter.sendMail(mailOptions, function (error, info) {
+            if (error) {
+                console.log(error);
+                return res.status(500).json({ message: "Error sending email" });
+            } else {
+                console.log('Email sent: ' + info.response);
+                return res.status(200).json({ message: "Success" });
+            }
+        });
+    } catch (error) {
+        console.error("Error sending email:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+
+app.post('/api/ResetPassword/:id/:token', async (req, res) => {
+    const { id, token } = req.params;
+    const { password } = req.body;
+
+    try {
+        jwt.verify(token, "jwt_secret_key", async (err, decoded) => {
+            if (err) {
+                return res.status(400).json({ message: "Error with token" });
+            } else {
+                const hashedPassword = await bcrypt.hash(password, 10);
+                await SignupModel.findByIdAndUpdate(id, { password: hashedPassword });
+                return res.status(200).json({ message: "Success" });
+            }
+        });
+    } catch (error) {
+        console.error("Error resetting password:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+
 
 server.listen(PORT_NUMBER, () => {
     console.log(`Server is running on Port Number ${PORT_NUMBER}`);
